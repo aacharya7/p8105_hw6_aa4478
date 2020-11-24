@@ -1,0 +1,78 @@
+---
+title: "Homework 6"
+author: "Ayeshra Acharya"
+date: "11/24/2020"
+output: github_document
+---
+```{r}
+library(tidyverse)
+```
+
+## Problem 1 
+
+```{r}
+homicide_df = 
+  read.csv("./data/homicide-data.csv") %>%
+  mutate(
+    resolved = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest" ~ "unsolved",
+      disposition == "Closed by arrest" ~ "solved"
+    ) %>%
+      filter(
+        victim_race %in% c("White","Black"),
+        city_state !="Tulsa AL") %>%
+  select(city_state, resolution, victim_age,victim_race,victim_sex)
+```
+
+
+Start with one city. 
+```{r}
+baltimore_df = 
+  homicide_df %>%
+  filter(city_state == "Baltimore,MD")
+glm(resolution ~ victim_age + victim_race + victim_sex,
+    data = baltimore_df
+    family = binomial()) %>%
+    broom::tidy()
+mutate(
+  OR = exp(estimate),
+  CI_lower = exp(esimate - 1.96 * std_error),
+  CI_upper = exp(estimate + 1.96 * std_error)
+) %>%
+  select(term,OR, starts_with("CI")) %>%
+  knitr::kable(digits = 3)
+``` 
+Want to do same process for every city in dataset. How? 
+First, nest dataset and then map over that fitting the regression model and then map across regression model. 
+We want city estimates of OR and estimates comparing age, race and sex. 
+
+```{r}
+model_results_df = 
+homicide_df %>%
+  nest(data = -city_state) %>%
+  mutate(
+    models = 
+      map(.x = data, ~glm(resolution ~ victim_age + victim_race + victim_sex, data = .x, family = binomial(()), results = map(models, broom::tidy)
+  ) %>%
+    select(city_state,results) %>%
+    unnest(results) %>%
+    broom::tidy()
+mutate(
+  OR = exp(estimate),
+  CI_lower = exp(esimate - 1.96 * std_error),
+  CI_upper = exp(estimate + 1.96 * std_error)
+) %>%
+  select(city_state,term,OR, starts_with("CI"))
+```
+Make a plot of these OR comparing male homicide victims to female homicide victims. 
+```{r}
+models_results_df %>% 
+  filter(term == "victim_sexMale") %>%
+  mutate(city_state = fct_reorder(city_state, OR)) %>% 
+  ggplot(aes(x = city_state, y = OR)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
