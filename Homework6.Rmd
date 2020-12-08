@@ -117,54 +117,136 @@ birth_df %>%
 
 There are no NAs in `birth_df` 
 
-### Building regression model
+I will be using a backward stepwise regression approach, which will begin with a full model and gradually eliminate variables. 
 
-Chosen predictors 
-- `ppwt` - mother's pre-pregnancy weight 
-- `pnumblw` - previous number of low birth weight babies
-- `wtgain` - mother's weight gain during pregnancy 
-- `ppbmi` - mother's pre-pregnancy BMI 
-
-Can we fit a linear regression model? Let's check visually. 
-
-Pre-pregnancy weight of mother 
-```{r}
-ppwt_lin = 
-  birth_df %>% 
-  ggplot(aes(x = ppwt, y = bwt)) +
-  geom_point()
-ppwt_lin
+```{r, message = FALSE}
+# Full model 
+full_model = lm(bwt ~ ., data = birth_df)
+step(full_model, direction = "backward")
 ```
 
-Pre-pregnancy BMI 
+The smallest AIC is 48705.38, which we will call model 1. 
 ```{r}
-ppbmi_lin = 
+model_1 = lm(formula = bwt ~ babysex + bhead + blength + delwt + fincome + 
+    gaweeks + mheight + mrace + parity + ppwt + smoken, data = birth_df)
+
+model_1 %>% 
+  broom::tidy() %>% 
+  select(-std.error, -statistic) %>% 
+  knitr::kable()
+```
+
+Residuals vs predicted 
+
+```{r}
 birth_df %>% 
-  ggplot(aes(x = ppbmi, y = bwt)) +
-  geom_point()
-
-ppbmi_lin
+  add_residuals(model_1) %>% 
+  add_predictions(model_1) %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point(alpha = 0.5)
 ```
+Based on the plot above, we can see that the points are all nearby each other, scattered around a residual value of 0, with some possible outliers. 
 
-Mother's weight gain 
+### Comparing to other models 
+Now, I will create two models, one which is the main effects and the other with a 3-way interaction. 
+
 ```{r}
-wtgain_lin = 
-birth_df %>% 
-  ggplot(aes(x = wtgain, y = bwt)) +
-  geom_point()
-
-wtgain_lin
+main_mod = lm(bwt ~ blength + gaweeks, data = birth_df)
+interaction_mod = lm(bwt ~ bhead * blength * babysex, data = birth_df)
 ```
 
-Previous low birthweight babies
+Cross validation of models 
+
 ```{r}
-pnumlbw_lin = 
-birth_df %>% 
-  ggplot(aes(x = pnumlbw, y = bwt)) +
-  geom_point()
-
-pnumlbw_lin
+cross_df = 
+  crossv_mc(birth_df, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)
+  )
+cross_df = 
+  cross_df %>% 
+  mutate(
+    model_1 = map(.x = train, ~lm(bwt ~ babysex + bhead + blength + delwt + fincome + 
+    gaweeks + mheight + mrace + parity + ppwt + smoken, data = .x)),
+    main_mod = map(.x = train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+    interaction_mod = map(.x = train, ~lm(bwt ~ bhead * blength * babysex, data = .x))
+  ) %>% 
+  mutate(
+    rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
+    rmse_main_mod = map2_dbl(main_mod, test, ~rmse(model = .x, data = .y)),
+    rmse_interaction_mod = map2_dbl(interaction_mod, test, ~rmse(model = .x, data = .y))
+    )
 ```
 
-I have decided not to include the `pnumlbw` variable in further analyses because as we can see from the plot above, all the values are 0, indicating that in this dataset, mothers did not have any babies with low birthweight babies. For the other 3 predictors, it seems like there may be some linear relationship so these will be included in the  final model. 
+Now, we will compare root mean square errors between the models. 
+
+```{r}
+cross_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  ggplot(aes(x = model, y = rmse)) +
+  geom_violin(aes(fill = model)) 
+```
+The violin plot comparing the 3 models shows us that model_1 has the lowest RMSE and thus it is the best model. This model also had the lowest AIC, as indicated above. 
+
+## Problem 3 
+
+### Read in data
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+5000 bootstrap samples 
+
+Calculate log(beta0*beta1)
+
+
+
+The distribution of the r^2 values is left-skewed. The distribution has a slightly heavy tail extending to low values and a bit of a “shoulder”, features that may be related to the frequency with which large outliers are included in the bootstrap sample.
+
+The 95% confidence interval of r^2 based on the 2.5% and 97.5% quantiles is (`r round(quantile(pull(bootstrap_rsquared, r.squared), probs = c(0.025, 0.975)), digits = 2)`).
+
+
+Producing estimates and plotting distribution of log(β0*β1) values:
+```{r prob2.logbetas}
+bootstrap_logbetas = 
+  boot_samp %>% 
+  mutate(
+    models = map(strap_sample, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::tidy)) %>% 
+  unnest(cols = c(results)) %>% 
+  select(strap_number, term, estimate) %>% 
+  pivot_wider(
+    names_from = term,
+    values_from = estimate) %>% 
+  rename(
+    "B0" = "(Intercept)",
+    "B1" = "tmin") %>% 
+  mutate(log_betas = log(B0*B1)) 
+bootstrap_logbetas %>% 
+  ggplot(aes(x = log_betas)) + 
+  geom_density(color = "seagreen") +
+  geom_vline(aes(xintercept = mean(log_betas), color = "blue"), linetype = "dashed") +
+  theme(legend.position = "none")
+```
+
+
+The distribution of the log(β0*β1) is approximately normal. This is likely due to the log-transformation of the product of β0 and β1 which is often used to transform skewed data to approximately conform to normality.
+
+The 95% confidence interval of log(β0*β1) based on the 2.5% and 97.5% quantiles is (`r round(quantile(pull(bootstrap_logbetas, log_betas), probs = c(0.025, 0.975)), digits = 2)`).
 
