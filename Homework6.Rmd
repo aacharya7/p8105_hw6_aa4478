@@ -5,8 +5,6 @@ date: "11/24/2020"
 output: github_document
 ---
 ```{r setup, include=FALSE}
-library(tidyverse)
-library(viridis)
 knitr::opts_chunk$set(
 	echo = TRUE,
 	warning = FALSE,
@@ -26,6 +24,7 @@ theme_set(theme_minimal() + theme(legend.position = "bottom"))
 ```{r}
 library(tidyverse)
 library(p8105.datasets)
+library(modelr)
 ```
 
 ## Problem 1 
@@ -97,4 +96,75 @@ models_results_df %>%
   geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper)) + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
+## Problem 2 
+Load and clean data
+```{r, message = FALSE}
+birth_df = 
+  read.csv("data/birthweight.csv") %>% 
+  mutate(
+    babysex = as.factor(babysex), 
+    mrace = as.factor(mrace),
+    malform = as.factor(malform),
+    frace = as.factor(frace))
+```
+
+Check for missing values
+```{r}
+count_na =
+birth_df %>%
+  map_df(~sum(is.na(.)))
+```
+
+There are no NAs in `birth_df` 
+
+### Building regression model
+
+Chosen predictors 
+- `ppwt` - mother's pre-pregnancy weight 
+- `pnumblw` - previous number of low birth weight babies
+- `wtgain` - mother's weight gain during pregnancy 
+- `ppbmi` - mother's pre-pregnancy BMI 
+
+Can we fit a linear regression model? Let's check visually. 
+
+Pre-pregnancy weight of mother 
+```{r}
+ppwt_lin = 
+  birth_df %>% 
+  ggplot(aes(x = ppwt, y = bwt)) +
+  geom_point()
+ppwt_lin
+```
+
+Pre-pregnancy BMI 
+```{r}
+ppbmi_lin = 
+birth_df %>% 
+  ggplot(aes(x = ppbmi, y = bwt)) +
+  geom_point()
+
+ppbmi_lin
+```
+
+Mother's weight gain 
+```{r}
+wtgain_lin = 
+birth_df %>% 
+  ggplot(aes(x = wtgain, y = bwt)) +
+  geom_point()
+
+wtgain_lin
+```
+
+Previous low birthweight babies
+```{r}
+pnumlbw_lin = 
+birth_df %>% 
+  ggplot(aes(x = pnumlbw, y = bwt)) +
+  geom_point()
+
+pnumlbw_lin
+```
+
+I have decided not to include the `pnumlbw` variable in further analyses because as we can see from the plot above, all the values are 0, indicating that in this dataset, mothers did not have any babies with low birthweight babies. For the other 3 predictors, it seems like there may be some linear relationship so these will be included in the  final model. 
 
