@@ -98,7 +98,7 @@ models_results_df %>%
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 ## Problem 2 
-Load and clean data
+### Load and clean data
 ```{r, message = FALSE}
 birth_df = 
   read.csv("data/birthweight.csv") %>% 
@@ -109,7 +109,7 @@ birth_df =
     frace = as.factor(frace))
 ```
 
-Check for missing values
+### Check for missing values
 ```{r}
 count_na =
 birth_df %>%
@@ -137,7 +137,7 @@ model_1 %>%
   knitr::kable()
 ```
 
-Residuals vs predicted 
+### Residuals vs predicted 
 
 ```{r}
 birth_df %>% 
@@ -156,7 +156,7 @@ main_mod = lm(bwt ~ blength + gaweeks, data = birth_df)
 interaction_mod = lm(bwt ~ bhead * blength * babysex, data = birth_df)
 ```
 
-Cross validation of models 
+### Cross validation of models 
 
 ```{r}
 cross_df = 
@@ -180,7 +180,7 @@ cross_df =
     )
 ```
 
-Now, we will compare root mean square errors between the models. 
+### Now, we will compare root mean square errors between the models. 
 
 ```{r}
 cross_df %>% 
@@ -196,7 +196,7 @@ cross_df %>%
 The violin plot comparing the 3 models shows us that model_1 has the lowest RMSE and thus it is the best model. This model also had the lowest AIC, as indicated above. 
 
 ## Problem 3 
-Read in data
+### Read in data
 ```{r}
 weather_df = 
   rnoaa::meteo_pull_monitors(
@@ -211,7 +211,7 @@ weather_df =
   select(name, id, everything())
 ```
 
-Using 5000 Bootstraps to produce estimates of r̂2 and log(β̂ 0∗β1)
+### Using 5000 Bootstraps to produce estimates of r̂2 and log(β̂ 0∗β1)
 
 ```{r}
 bootstrap_results = 
@@ -228,7 +228,7 @@ bootstrap_results =
   select(strap_number, term, estimate, r.squared)
 ```
 
-Calculating  log(β̂ 0∗β1)
+### Calculating  log(β̂ 0∗β1)
 ```{r}
 log_beta = 
   bootstrap_results %>% 
@@ -245,7 +245,7 @@ log_beta =
 final_result = left_join(bootstrap_results, log_beta, by = "strap_number")
 ```
 
-Plotting the distribution of estimates
+### Plotting the distribution of estimates
 ```{r}
 ## Plot of r-squared 
 final_result %>%
@@ -264,6 +264,23 @@ final_result %>%
     title = "Distribution of log(β^0∗β^1)"
   )
 ```
+
 By looking at the plots, we can see that the distribution of r-squared appears normally distributed and slightly left skewed. The distribution of log(β^0∗β^1) is centered around 2 and also looks normally distributed with a slight left skew. 
 
+### Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r2 and log(β̂ 0∗β̂ 1)
+```{r}
+final_result %>%
+  group_by(term) %>%
+  filter(term == "tmin") %>%
+   summarize(
+    rsq_lower = quantile(r.squared, 0.025),
+    rsq_upper = quantile(r.squared, 0.975),
+    beta_lower = quantile(log_beta, 0.025),
+    beta_upper = quantile(log_beta, 0.975)
+  ) %>% 
+  knitr::kable()
+```
+
+The 95% CI for r-squared is 0.8943 to 0.9272 
+The 95% CI for log(β^0∗β^1) is 1.9647 to 2.0585 
 

@@ -106,7 +106,7 @@ models_results_df %>%
 ```
 
 <img src="Homework6_files/figure-gfm/unnamed-chunk-5-1.png" width="90%" />
-\#\# Problem 2 Load and clean data
+\#\# Problem 2 \#\#\# Load and clean data
 
 ``` r
 birth_df = 
@@ -118,7 +118,7 @@ birth_df =
     frace = as.factor(frace))
 ```
 
-Check for missing values
+### Check for missing values
 
 ``` r
 count_na =
@@ -323,7 +323,7 @@ model_1 %>%
 | ppwt        |    \-2.6755853 | 0.0000000 |
 | smoken      |    \-4.8434197 | 0.0000000 |
 
-Residuals vs predicted
+### Residuals vs predicted
 
 ``` r
 birth_df %>% 
@@ -348,7 +348,7 @@ main_mod = lm(bwt ~ blength + gaweeks, data = birth_df)
 interaction_mod = lm(bwt ~ bhead * blength * babysex, data = birth_df)
 ```
 
-Cross validation of models
+### Cross validation of models
 
 ``` r
 cross_df = 
@@ -372,7 +372,7 @@ cross_df =
     )
 ```
 
-Now, we will compare root mean square errors between the models.
+### Now, we will compare root mean square errors between the models.
 
 ``` r
 cross_df %>% 
@@ -393,7 +393,7 @@ lowest AIC, as indicated above.
 
 ## Problem 3
 
-Read in data
+### Read in data
 
 ``` r
 weather_df = 
@@ -419,7 +419,7 @@ weather_df =
 
     ## file min/max dates: 1869-01-01 / 2020-12-31
 
-Using 5000 Bootstraps to produce estimates of r̂2 and log(β̂ 0∗β1)
+### Using 5000 Bootstraps to produce estimates of r̂2 and log(β̂ 0∗β1)
 
 ``` r
 bootstrap_results = 
@@ -436,7 +436,7 @@ bootstrap_results =
   select(strap_number, term, estimate, r.squared)
 ```
 
-Calculating log(β̂ 0∗β1)
+### Calculating log(β̂ 0∗β1)
 
 ``` r
 log_beta = 
@@ -454,4 +454,58 @@ log_beta =
 final_result = left_join(bootstrap_results, log_beta, by = "strap_number")
 ```
 
-Plotting the distribution of estimates
+### Plotting the distribution of estimates
+
+``` r
+## Plot of r-squared 
+final_result %>%
+  filter(term == "tmin") %>% 
+  ggplot(aes(x = r.squared)) +
+  geom_density() +
+  labs(
+    title = "Distribution of r squared"
+  )
+```
+
+<img src="Homework6_files/figure-gfm/unnamed-chunk-17-1.png" width="90%" />
+
+``` r
+## Plot of log(β^0∗β^1)
+final_result %>% 
+  filter(term == "tmin") %>% 
+  ggplot(aes(x = log_beta)) +
+  geom_density() +
+  labs(
+    title = "Distribution of log(β^0∗β^1)"
+  )
+```
+
+<img src="Homework6_files/figure-gfm/unnamed-chunk-17-2.png" width="90%" />
+By looking at the plots, we can see that the distribution of r-squared
+appears normally distributed and slightly left skewed. The distribution
+of log(β<sup>0∗β</sup>1) is centered around 2 and also looks normally
+distributed with a slight left skew.
+
+### Identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r2 and log(β̂ 0∗β̂ 1)
+
+``` r
+final_result %>%
+  group_by(term) %>%
+  filter(term == "tmin") %>%
+   summarize(
+    rsq_lower = quantile(r.squared, 0.025),
+    rsq_upper = quantile(r.squared, 0.975),
+    beta_lower = quantile(log_beta, 0.025),
+    beta_upper = quantile(log_beta, 0.975)
+  ) %>% 
+  knitr::kable()
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+| term | rsq\_lower | rsq\_upper | beta\_lower | beta\_upper |
+| :--- | ---------: | ---------: | ----------: | ----------: |
+| tmin |  0.8938838 |  0.9272723 |    1.966106 |    2.059328 |
+
+The 95% CI for r-squared is 0.8943 to 0.9272 The 95% CI for
+log(β<sup>0∗β</sup>1) is 1.9647 to 2.0585
