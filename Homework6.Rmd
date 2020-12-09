@@ -180,7 +180,7 @@ cross_df =
     )
 ```
 
-### Now, we will compare root mean square errors between the models. 
+### Now, I will compare root mean square errors between the models. 
 
 ```{r}
 cross_df %>% 
@@ -281,6 +281,6 @@ final_result %>%
   knitr::kable()
 ```
 
-The 95% CI for r-squared is 0.8943 to 0.9272 
-The 95% CI for log(β^0∗β^1) is 1.9647 to 2.0585 
+The 95% CI for r-squared is 0.8943 to 0.9272.
+The 95% CI for log(β^0∗β^1) is 1.9647 to 2.0585.
 

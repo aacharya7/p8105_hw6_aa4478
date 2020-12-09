@@ -481,6 +481,7 @@ final_result %>%
 ```
 
 <img src="Homework6_files/figure-gfm/unnamed-chunk-17-2.png" width="90%" />
+
 By looking at the plots, we can see that the distribution of r-squared
 appears normally distributed and slightly left skewed. The distribution
 of log(β<sup>0∗β</sup>1) is centered around 2 and also looks normally
@@ -505,7 +506,7 @@ final_result %>%
 
 | term | rsq\_lower | rsq\_upper | beta\_lower | beta\_upper |
 | :--- | ---------: | ---------: | ----------: | ----------: |
-| tmin |  0.8938838 |  0.9272723 |    1.966106 |    2.059328 |
+| tmin |  0.8936105 |  0.9270779 |    1.964851 |    2.058871 |
 
 The 95% CI for r-squared is 0.8943 to 0.9272 The 95% CI for
 log(β<sup>0∗β</sup>1) is 1.9647 to 2.0585
