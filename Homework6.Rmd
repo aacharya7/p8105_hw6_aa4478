@@ -4,6 +4,12 @@ author: "Ayeshra Acharya"
 date: "11/24/2020"
 output: github_document
 ---
+```{r}
+library(tidyverse)
+library(p8105.datasets)
+library(modelr)
+```
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
 	echo = TRUE,
@@ -21,11 +27,6 @@ scale_fill_discrete = scale_fill_viridis_d
 theme_set(theme_minimal() + theme(legend.position = "bottom"))
 ```
 
-```{r}
-library(tidyverse)
-library(p8105.datasets)
-library(modelr)
-```
 
 ## Problem 1 
 
@@ -195,8 +196,7 @@ cross_df %>%
 The violin plot comparing the 3 models shows us that model_1 has the lowest RMSE and thus it is the best model. This model also had the lowest AIC, as indicated above. 
 
 ## Problem 3 
-
-### Read in data
+Read in data
 ```{r}
 weather_df = 
   rnoaa::meteo_pull_monitors(
@@ -211,42 +211,59 @@ weather_df =
   select(name, id, everything())
 ```
 
-5000 bootstrap samples 
+Using 5000 Bootstraps to produce estimates of r̂2 and log(β̂ 0∗β1)
 
-Calculate log(beta0*beta1)
-
-
-
-The distribution of the r^2 values is left-skewed. The distribution has a slightly heavy tail extending to low values and a bit of a “shoulder”, features that may be related to the frequency with which large outliers are included in the bootstrap sample.
-
-The 95% confidence interval of r^2 based on the 2.5% and 97.5% quantiles is (`r round(quantile(pull(bootstrap_rsquared, r.squared), probs = c(0.025, 0.975)), digits = 2)`).
-
-
-Producing estimates and plotting distribution of log(β0*β1) values:
-```{r prob2.logbetas}
-bootstrap_logbetas = 
-  boot_samp %>% 
+```{r}
+bootstrap_results = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000, id = "strap_number") %>% 
   mutate(
-    models = map(strap_sample, ~lm(tmax ~ tmin, data = .x)),
-    results = map(models, broom::tidy)) %>% 
-  unnest(cols = c(results)) %>% 
-  select(strap_number, term, estimate) %>% 
-  pivot_wider(
-    names_from = term,
-    values_from = estimate) %>% 
-  rename(
-    "B0" = "(Intercept)",
-    "B1" = "tmin") %>% 
-  mutate(log_betas = log(B0*B1)) 
-bootstrap_logbetas %>% 
-  ggplot(aes(x = log_betas)) + 
-  geom_density(color = "seagreen") +
-  geom_vline(aes(xintercept = mean(log_betas), color = "blue"), linetype = "dashed") +
-  theme(legend.position = "none")
+    models = map(.x = strap, ~ lm(tmax ~ tmin, data = .x)),
+    r_squared = map(models, broom::glance),
+    results = map(models, broom::tidy)
+  ) %>% 
+  unnest(results) %>% 
+  select(strap_number, term, estimate, r_squared) %>% 
+  unnest(r_squared) %>% 
+  select(strap_number, term, estimate, r.squared)
 ```
 
+Calculating  log(β̂ 0∗β1)
+```{r}
+log_beta = 
+  bootstrap_results %>% 
+  select(strap_number:estimate) %>% 
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  ) %>% 
+  janitor::clean_names() %>% 
+  mutate(
+    log_beta = log(intercept*tmin)
+  ) %>% 
+  select(strap_number, log_beta)
+final_result = left_join(bootstrap_results, log_beta, by = "strap_number")
+```
 
-The distribution of the log(β0*β1) is approximately normal. This is likely due to the log-transformation of the product of β0 and β1 which is often used to transform skewed data to approximately conform to normality.
+Plotting the distribution of estimates
+```{r}
+## Plot of r-squared 
+final_result %>%
+  filter(term == "tmin") %>% 
+  ggplot(aes(x = r.squared)) +
+  geom_density() +
+  labs(
+    title = "Distribution of r squared"
+  )
+## Plot of log(β^0∗β^1)
+final_result %>% 
+  filter(term == "tmin") %>% 
+  ggplot(aes(x = log_beta)) +
+  geom_density() +
+  labs(
+    title = "Distribution of log(β^0∗β^1)"
+  )
+```
+By looking at the plots, we can see that the distribution of r-squared appears normally distributed and slightly left skewed. The distribution of log(β^0∗β^1) is centered around 2 and also looks normally distributed with a slight left skew. 
 
-The 95% confidence interval of log(β0*β1) based on the 2.5% and 97.5% quantiles is (`r round(quantile(pull(bootstrap_logbetas, log_betas), probs = c(0.025, 0.975)), digits = 2)`).
 
